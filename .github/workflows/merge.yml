@@ -101,8 +101,8 @@ jobs:
       with:
         # important to keep it at 0 to get all tags
         fetch-depth: 0
-        # this token is required
-        token: ${{ secrets.SEMVER_GITHUB_PAT }}
+        # this token is required for semantic-release
+        token: ${{ secrets.SEMVER_GITHUB_PAT || secrets.GITHUB_TOKEN }}
         # remove this line if you don't use git-lfs
         lfs: true
 

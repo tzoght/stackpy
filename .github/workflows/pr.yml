@@ -40,6 +40,8 @@ jobs:
       with:
         # important to keep it at 0 to get all tags
         fetch-depth: 0
+        # use default github token for PR workflows
+        token: ${{ secrets.GITHUB_TOKEN }}
         # remove this line if you don't use git-lfs
         lfs: true
 
