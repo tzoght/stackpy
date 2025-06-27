@@ -1,0 +1,36 @@
+[tool.poetry]
+name = "stackpy"
+version = "0.0.0"
+description = "Library for initializing a repo for a python project"
+authors=["Tony Zoght"]
+license="Copyright Zoght Inc - DO NOT DISTRIBUTE"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">3.8,<3.12"
+
+[tool.poetry.dev-dependencies]
+pytest = ">=6.2.5"
+
+[tool.poetry.group.dev.dependencies]
+pytest-cov = "^5.0.0"
+jupyter = "^1.0.0"
+sphinx-autoapi = "^3.0.0"
+sphinx-rtd-theme = "^3.0.2"
+python-semantic-release = "^7.32.2"
+sphinxcontrib-napoleon = "^0.7"
+
+[tool.semantic_release]
+version_variable = "pyproject.toml:version" # version location
+branch = "main"                             # branch to make releases of
+changelog_file = "CHANGELOG.md"             # changelog file
+build_command = "poetry build"              # build distribution files
+dist_path = "dist/"                         # where to put distribution files
+upload_to_release = true                    # auto-create GitHub release
+upload_to_pypi = false                      # don't auto-upload to PyPI
+remove_dist = false                         # don't remove distribution files
+patch_without_tag = true                    # patch release by default
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

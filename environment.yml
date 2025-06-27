@@ -1,0 +1,19 @@
+# conda env create --file environment.yml
+# conda env update --file environment.yml --prune
+name: 'stackpy'
+channels:
+  - conda-forge
+  - defaults
+  - anaconda
+dependencies:
+  - python=3.11
+  - ipykernel
+  - pip
+  - pip:
+    - poetry
+    - twine
+    - python-semantic-release
+    - pre-commit
+    - black
+    - flake8
+    - black[jupyter]

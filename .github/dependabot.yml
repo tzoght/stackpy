@@ -1,0 +1,19 @@
+version: 2
+registries:
+  quandri-pypi:
+    type: python-index
+    url: https://pypi.quandri.io/simple/
+    username: ${{ secrets.PYPI_USERNAME }}
+    password: ${{ secrets.PYPI_PASSWORD }}
+    replaces-base: false
+updates:
+  - package-ecosystem: "pip"
+    directory: "/"
+    insecure-external-code-execution: allow
+    registries:
+      - quandri-pypi
+    schedule:
+      interval: "daily"
+    reviewers:
+      - "tzoght"
+      - "JoshUptons"

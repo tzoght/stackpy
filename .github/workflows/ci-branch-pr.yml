@@ -1,0 +1,102 @@
+name: ci-branch-pr
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+concurrency:
+  # Defines a concurrency group named "pages". Jobs with the same
+  # group name will be managed under this concurrency setting.
+  group: "${{ vars.QUAN_PYPI_LIBRARY_NAME }}-${{ github.head_ref }}"
+  # If a new job in the "pages" group starts, and a previous
+  # job in the same group is still running, the already running job will be canceled.
+  cancel-in-progress: false
+
+env:
+  ################################## REPOSITORY SPECIFIC ##################################
+  # Specifies the Python version to be used in the workflow.
+  PYTHON_VERSION: "3.8"
+    # Sets the name of the Conda environment defined in environment.yml.
+  CONDA_ENV: "${{ vars.QUAN_CONDA_ENV_NAME }}"
+  # Defines the name of the library for PyPI operations.
+  PYPI_LIBRARY_NAME: "${{ vars.QUAN_PYPI_LIBRARY_NAME }}"
+  ####################################### DEFAULT #########################################
+
+  ############################## DEFINED AS REPOSITORY SECRET #############################
+  # URL of the PyPI repository. Sourced from GitHub secrets for security.
+  # https://pypy.quandri.io
+  PYPI_REPOSITORY_URL: ${{ secrets.PYPI_REPOSITORY_URL }}
+  # PyPI username for authentication. Sourced from GitHub secrets.
+  PYPI_USERNAME: ${{ secrets.PYPI_USERNAME }}
+  # PyPI password for authentication. Sourced from GitHub secrets.
+  PYPI_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+  # Setup alternative PyPI repository for poetry
+  QUANDRI_PYPI_REPOSITORY_URL: ${{ secrets.PYPI_REPOSITORY_URL }}/simple/
+
+
+jobs:
+  ci-branch-pr:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: "${{ env.PYTHON_VERSION }}"
+
+    - name: Check-out repository
+      uses: actions/checkout@v4
+      with:
+        # important to keep it at 0 to get all tags
+        fetch-depth: 0
+        # remove this line if you don't use git-lfs
+        lfs: true
+
+    # remove this job if you don't use git-lfs
+    - name: Cache Git LFS objects
+      id: cache-lfs
+      uses: actions/cache@v4
+      with:
+        path: .git/lfs
+        key: ${{ runner.os }}-git-lfs-${{ hashFiles('.gitattributes') }}
+        restore-keys: |
+          ${{ runner.os }}-git-lfs-
+
+    # remove this job if you don't use git-lfs
+    - name: Pull LFS files if cache miss
+      if: steps.cache-lfs.outputs.cache-hit != 'true'
+      run: |
+        git lfs fetch
+        git lfs checkout
+
+    - name: Install dependencies (Private and Public PyPI)
+      run: |
+        conda env create -f environment.yml
+        echo "Initialize Conda"
+        eval "$(conda shell.bash hook)"
+        conda init bash
+        conda activate ${{ env.CONDA_ENV }}
+        # setup quandri internal pypi
+        poetry config repositories.quandri-pypi ${{ env.QUANDRI_PYPI_REPOSITORY_URL }}
+        poetry config http-basic.quandri-pypi ${{ env.PYPI_USERNAME }} ${{ env.PYPI_PASSWORD }}
+
+    - name: Install ${{ env.PYPI_LIBRARY_NAME }} library using poetry
+      run: |
+        echo "Initialize Conda"
+        eval "$(conda shell.bash hook)"
+        conda activate ${{ env.CONDA_ENV }}
+        poetry install
+
+    - name: Run CI-PR test suite
+      run: |
+        echo "Initialize Conda"
+        eval "$(conda shell.bash hook)"
+        conda activate ${{ env.CONDA_ENV }}
+        poetry run pytest tests/ --cov-branch --cov=template_library --cov-report=xml:coverage-reports/coverage.xml
+        ls -las coverage-reports/
+
+    - name: SonarCloud Scan
+      uses: SonarSource/sonarcloud-github-action@master
+      env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
