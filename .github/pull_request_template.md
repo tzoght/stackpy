@@ -1,11 +1,41 @@
-## Description (what this PR changes and why)
+## 📝 Description
 
-## Asana Ticket Link
+Brief description of what this PR accomplishes and why these changes are needed.
 
-## Testing
-#### Describe any steps/commands needed to test your changes, relevant test results, etc.
+## 🔗 Related Issue
 
-## Checklist before requesting a review
-- [ ] My code meets the AC listed in the linked Asana ticket
-- [ ] My code is fully type hinted
-- [ ] I have updated any documentation to reflect my changes (e.g. notion, README, etc.)
+Fixes #(issue_number) - if applicable
+
+## 🧪 Testing
+
+- [ ] All existing tests pass
+- [ ] New tests added for new functionality
+- [ ] Manual testing completed
+
+**Test Commands:**
+```bash
+make test
+make lint
+```
+
+## 📋 Checklist
+
+- [ ] Code follows project style guidelines (`make format`)
+- [ ] Self-review of code completed
+- [ ] Code is properly documented/commented
+- [ ] Tests added/updated for changes
+- [ ] Documentation updated (README, docs/, etc.)
+- [ ] No breaking changes (or marked as breaking change)
+
+## 📸 Screenshots (if applicable)
+
+<!-- Add screenshots for UI changes -->
+
+## 🔄 Type of Change
+
+- [ ] Bug fix (non-breaking change that fixes an issue)
+- [ ] New feature (non-breaking change that adds functionality)
+- [ ] Breaking change (fix or feature that causes existing functionality to change)
+- [ ] Documentation update
+- [ ] Code refactoring
+- [ ] Performance improvement

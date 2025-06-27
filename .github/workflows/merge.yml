@@ -1,67 +1,41 @@
-name: ci-main-auto-release
-# builds and publishes the package to PyPI on every push to main,
-# note that push to main is not allowed, only PRs are allowed
+name: merge
 
 on:
   push:
     branches: ["main"] # only on main branch
 
 permissions:
-  # Grants permission to write to the repository contents,
-  # including pushing code, managing files, and handling GitHub releases.
   contents: write
-  # Allows the workflow to create or update GitHub Pages content,
-  # useful for deploying static websites.
   pages: write
-  # Enables the workflow to request an
-  #id_token (JWT) for the GITHUB_TOKEN, used for OpenID Connect
-  # authentication to third-party services.
   id-token: write
 
 concurrency:
-  # Defines a concurrency group named "pages". Jobs with the same
-  # group name will be managed under this concurrency setting.
-  group: "${{ vars.QUAN_PYPI_LIBRARY_NAME }}-${{ github.head_ref }}"
-  # If a new job in the "pages" group starts, and a previous
-  # job in the same group is still running, the already running job will be canceled.
+  group: "${{ vars.REPO_NAME }}-${{ github.head_ref || github.ref_name }}"
   cancel-in-progress: false
 
 env:
   ################################## REPOSITORY SPECIFIC ##################################
   # Specifies the Python version to be used in the workflow.
-  PYTHON_VERSION: "3.8"
-    # Sets the name of the Conda environment defined in environment.yml.
-  CONDA_ENV: "${{ vars.QUAN_CONDA_ENV_NAME }}"
-  # Defines the name of the library for PyPI operations.
-  PYPI_LIBRARY_NAME: "${{ vars.QUAN_PYPI_LIBRARY_NAME }}"
+  PYTHON_VERSION: "3.12"
+  # Repository name from GitHub variables
+  REPO_NAME: "${{ vars.REPO_NAME }}"
+  # Conda environment name (typically matches repo name)
+  CONDA_ENV: "${{ vars.REPO_NAME }}"
+  # PyPI library name (typically matches repo name)
+  PYPI_LIBRARY_NAME: "${{ vars.REPO_NAME }}"
+  # Repository full name for API calls
+  REPO: "tzoght/${{ vars.REPO_NAME }}"
   # A Python import statement used for testing package installation.
-  TEST_IMPORT: "${{ vars.QUAN_TEST_IMPORT_STATEMENT }}"
+  TEST_IMPORT: "${{ vars.TEST_IMPORT_STATEMENT }}"
   # Define the link to the release
-  LINK_TO_RELEASES: "https://github.com/Quandri/${{ vars.QUAN_PYPI_LIBRARY_NAME }}/releases"
+  LINK_TO_RELEASES: "https://github.com/tzoght/${{ vars.REPO_NAME }}/releases"
   ####################################### DEFAULT #########################################
 
   ############################## DEFINED AS REPOSITORY SECRET #############################
-  # URL of the PyPI repository. Sourced from GitHub secrets for security.
-  # https://pypy.quandri.io
-  PYPI_REPOSITORY_URL: ${{ secrets.PYPI_REPOSITORY_URL }}
-  # PyPI username for authentication. Sourced from GitHub secrets.
-  PYPI_USERNAME: ${{ secrets.PYPI_USERNAME }}
-  # PyPI password for authentication. Sourced from GitHub secrets.
-  PYPI_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-  # Twine username for uploading packages. Typically matches the PyPI username.
-  TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
-  # Twine password for uploading packages. Typically matches the PyPI password.
-  TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-  # URL of the repository where Twine will upload packages.
-  TWINE_REPOSITORY_URL: ${{ secrets.PYPI_REPOSITORY_URL }}
-  # Setup alternative PyPI repository for poetry
-  # https://pypy.quandri.io/simple/
-  QUANDRI_PYPI_REPOSITORY_URL: ${{ secrets.PYPI_REPOSITORY_URL }}/simple/
+  # PyPI API token for authentication. Sourced from GitHub secrets for security.
+  PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
   # SEMVER_PAT
   SEMVER_PAT: ${{ secrets.SEMVER_GITHUB_PAT }}
-  # SLACK_WEBHOOK_URL
-  SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-
 
 jobs:
 
@@ -110,17 +84,8 @@ jobs:
             # echo "name=is_semver::false" >> $GITHUB_E
             echo "::set-output name=is_semver::false"
           fi
-          
-          # Enforce conventional commit or semver format.
-          if ! echo "$commit_message" | grep -Eq '^(feat|fix|docs|chore|refactor|test|perf|build|ci)(?:\([a-zA-Z0-9.\-]+\))?: [a-z].*[^.]$|^[0-9]+\.[0-9]+\.[0-9]+'; then
-            echo "Commit message must follow Conventional Commits, be in lower-case, and not end in a period."
-            echo "Example: fix: correct minor typos in code"
-            echo "::error::Invalid commit message format."
-            exit 1
-          fi
-
-
-  ci-main-auto-release:
+      
+  merge:
     needs: pre_check
     if: needs.pre_check.outputs.is_semver == 'false'
     runs-on: ubuntu-latest
@@ -158,16 +123,13 @@ jobs:
         git lfs fetch
         git lfs checkout
 
-    - name: Install dependencies (Private and Public PyPI)
+    - name: Install dependencies
       run: |
         conda env create -f environment.yml
         echo "Initialize Conda"
         eval "$(conda shell.bash hook)"
         conda init bash
         conda activate ${{ env.CONDA_ENV }}
-        # setup quandri internal pypi
-        poetry config repositories.quandri-pypi ${{ env.QUANDRI_PYPI_REPOSITORY_URL }}
-        poetry config http-basic.quandri-pypi ${{ env.PYPI_USERNAME }} ${{ env.PYPI_PASSWORD }}
 
     - name: Install ${{ env.PYPI_LIBRARY_NAME }} library using poetry
       run: |
@@ -204,24 +166,19 @@ jobs:
         git config user.name github-actions
         git config user.email github-actions@github.com
         poetry run semantic-release publish
-        cat pyproject.toml
-        cat CHANGELOG.md
 
-
-    - name: Build package and Publish to Private Pypi
+    - name: Build package and Publish to PyPI
       run: |
           echo "Initialize Conda"
           eval "$(conda shell.bash hook)"
           conda init bash
           conda activate ${{ env.CONDA_ENV }}
-          poetry config repositories.quandri-pypi https://pypi.quandri.io/simple/
-          poetry config http-basic.quandri-pypi ${{ env.PYPI_USERNAME }} ${{ env.PYPI_PASSWORD }}
           poetry update
           poetry build
-          # (source version) pip install <library>
-          twine upload --verbose ./dist/*.tar.gz
-          # (binary version) pip install <library> --only-binary :all:
-          twine upload --verbose ./dist/*.whl
+          # Configure poetry to use PyPI API token
+          poetry config pypi-token.pypi ${{ env.PYPI_API_TOKEN }}
+          # Publish to PyPI
+          poetry publish
 
     - name: Get ${{ env.PYPI_LIBRARY_NAME }} version
       id: get_version
@@ -233,17 +190,16 @@ jobs:
           echo "LIB_VERSION=$(poetry version --short)" >> $GITHUB_ENV
 
     - name: Test installation of ${{ env.PYPI_LIBRARY_NAME}}==${{ env.LIB_VERSION }}
-      env:
-          VAULT_SECRET: ${{ secrets.VAULT_SECRET }}
       run: |
           echo "Initialize Conda"
           eval "$(conda shell.bash hook)"
           conda init bash
           conda create --name new_env python=${{ env.PYTHON_VERSION }}
           conda activate new_env
-          echo "$VAULT_SECRET" > vault.json
           echo "****** Testing Installation of  ${{ env.PYPI_LIBRARY_NAME }}==${{ env.LIB_VERSION }} *****"
-          python -m pip install ${{ env.PYPI_LIBRARY_NAME }}==${{ env.LIB_VERSION }} --extra-index-url https://${{ env.PYPI_USERNAME }}:${{ env.PYPI_PASSWORD }}@pypi.quandri.io/simple/
+          # Wait a bit for PyPI to propagate the new package
+          sleep 60
+          python -m pip install ${{ env.PYPI_LIBRARY_NAME }}==${{ env.LIB_VERSION }}
           python -c "${{ env.TEST_IMPORT }}"
           if [ $? -eq 0 ]; then
           echo "${{ env.PYPI_LIBRARY_NAME }} is successfully installed via pip."
@@ -252,17 +208,4 @@ jobs:
           exit 1
           fi
 
-    - name: Send notification to Slack releases Channel
-      run: |
-        # Get the latest release notes from GitHub using your Bash script
-        latest_release_notes=$(curl -s -H "Authorization: token ${{ env.SEMVER_PAT}}" "https://api.github.com/repos/${{ env.REPO }}/releases/latest" | jq -r '.body')
 
-        # Prepare the message with release notes
-        message=":rotating_light: Release \`${{ env.PYPI_LIBRARY_NAME }} -> ${{ env.LIB_VERSION }}\` -> <${{ env.LINK_TO_RELEASES }}|Link to Release>\n\nLatest Release Notes:\n$latest_release_notes"
-
-        # Send the message to Slack
-        curl -X POST --data-urlencode "payload={
-          \"channel\": \"#engineering-releases\",
-          \"username\": \"Releases-Bot\",
-          \"text\": \"$message\"
-        }" ${{ env.SLACK_WEBHOOK_URL }}
