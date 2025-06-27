@@ -152,11 +152,20 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-    - name: Semantic Release
+    - name: Configure PyPI token for semantic-release
+      run: |
+          echo "Initialize Conda"
+          eval "$(conda shell.bash hook)"
+          conda activate ${{ env.CONDA_ENV }}
+          # Configure poetry to use PyPI API token for semantic-release
+          poetry config pypi-token.pypi ${{ env.PYPI_API_TOKEN }}
+
+    - name: Semantic Release with PyPI Publishing
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         PRE_RELEASE: ${{ env.PRE_RELEASE }}
         SEMVER_PAT: ${{ secrets.SEMVER_GITHUB_PAT }}
+        PYPI_TOKEN: ${{ env.PYPI_API_TOKEN }}
       run: |
         echo "Initialize Conda"
         eval "$(conda shell.bash hook)"
@@ -167,15 +176,6 @@ jobs:
         git config user.email github-actions@github.com
         poetry run semantic-release publish
 
-    - name: Build package
-      run: |
-          echo "Initialize Conda"
-          eval "$(conda shell.bash hook)"
-          conda init bash
-          conda activate ${{ env.CONDA_ENV }}
-          poetry update
-          poetry build
-
     - name: Get ${{ env.PYPI_LIBRARY_NAME }} version
       id: get_version
       run: |
@@ -184,5 +184,38 @@ jobs:
           conda init bash
           conda activate ${{ env.CONDA_ENV }}
           echo "LIB_VERSION=$(poetry version --short)" >> $GITHUB_ENV
+
+    - name: Test installation from PyPI
+      run: |
+          echo "Initialize Conda"
+          eval "$(conda shell.bash hook)"
+          conda init bash
+          conda create --name test_env python=${{ env.PYTHON_VERSION }}
+          conda activate test_env
+          echo "****** Testing Installation of ${{ env.PYPI_LIBRARY_NAME }}==${{ env.LIB_VERSION }} *****"
+          # Wait a bit for PyPI to propagate the new package
+          sleep 90
+          python -m pip install ${{ env.PYPI_LIBRARY_NAME }}==${{ env.LIB_VERSION }}
+          python -c "${{ env.TEST_IMPORT }}"
+          if [ $? -eq 0 ]; then
+            echo "✅ ${{ env.PYPI_LIBRARY_NAME }} successfully installed from PyPI!"
+          else
+            echo "❌ ${{ env.PYPI_LIBRARY_NAME }} could not be installed from PyPI."
+            exit 1
+          fi
+
+    - name: Create publishing summary
+      run: |
+        echo "## 🎉 Package Published Successfully!" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Package:** \`${{ env.PYPI_LIBRARY_NAME }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "**Version:** \`${{ env.LIB_VERSION }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "**PyPI URL:** https://pypi.org/project/${{ env.PYPI_LIBRARY_NAME }}/" >> $GITHUB_STEP_SUMMARY
+        echo "**GitHub Release:** ${{ env.LINK_TO_RELEASES }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📦 Install Command:" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+        echo "pip install ${{ env.PYPI_LIBRARY_NAME }}==${{ env.LIB_VERSION }}" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
 

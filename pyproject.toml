@@ -25,7 +25,7 @@ changelog_file = "CHANGELOG.md"             # changelog file
 build_command = "poetry build"              # build distribution files
 dist_path = "dist/"                         # where to put distribution files
 upload_to_release = true                    # auto-create GitHub release
-upload_to_pypi = false                      # manual PyPI publishing
+upload_to_pypi = true                       # auto-upload to PyPI
 remove_dist = false                         # don't remove distribution files
 patch_without_tag = true                    # patch release by default
 
