@@ -2,6 +2,17 @@
 
 <!--next-version-placeholder-->
 
+## v1.0.0 (2025-06-27)
+
+### Feature
+
+* Enhance GitHub Packages installation testing ([`c576270`](https://github.com/tzoght/stackpy/commit/c576270963a1be42b727aa04eabd892c8cac9116))
+* Switch from PyPI to GitHub Packages for artifact publishing ([`a71b7c9`](https://github.com/tzoght/stackpy/commit/a71b7c915f2a59b2a0b4650f7973be4760867d88))
+
+### Breaking
+
+* Package installation now requires GitHub Packages index URL ([`a71b7c9`](https://github.com/tzoght/stackpy/commit/a71b7c915f2a59b2a0b4650f7973be4760867d88))
+
 ## v0.2.0 (2025-06-27)
 
 ### Feature

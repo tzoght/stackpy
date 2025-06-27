@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "stackpy"
-version = "0.2.0"
+version = "1.0.0"
 description = "Library for initializing a repo for a python project"
 authors=["Tony Zoght"]
 license="Copyright Zoght Inc - DO NOT DISTRIBUTE"
