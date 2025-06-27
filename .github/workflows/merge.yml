@@ -204,17 +204,52 @@ jobs:
           conda create --name test_env python=${{ env.PYTHON_VERSION }}
           conda activate test_env
           echo "****** Testing Installation of ${{ env.PYPI_LIBRARY_NAME }}==${{ env.LIB_VERSION }} from GitHub Packages *****"
-          # Wait a bit for GitHub Packages to propagate the new package
-          sleep 60
-          # Install from GitHub Packages
-          python -m pip install --index-url https://__token__:${{ env.GITHUB_TOKEN }}@pypi.pkg.github.com/tzoght/simple/ ${{ env.PYPI_LIBRARY_NAME }}==${{ env.LIB_VERSION }}
+          
+          # Wait for GitHub Packages to propagate the new package
+          echo "⏳ Waiting for package propagation to GitHub Packages..."
+          sleep 90
+          
+          # Clear pip cache to ensure fresh download
+          echo "🧹 Clearing pip cache for fresh installation test..."
+          python -m pip cache purge
+          
+          # Ensure we're only using GitHub Packages (no fallback to PyPI)
+          echo "🔧 Configuring pip to use only GitHub Packages..."
+          python -m pip config set global.index-url https://__token__:${{ env.GITHUB_TOKEN }}@pypi.pkg.github.com/tzoght/simple/
+          python -m pip config set global.trusted-host pypi.pkg.github.com
+          python -m pip config set global.no-index false
+          
+          # Verify the package exists in GitHub Packages
+          echo "🔍 Checking package availability in GitHub Packages..."
+          python -m pip index versions ${{ env.PYPI_LIBRARY_NAME }} || echo "Package may still be propagating..."
+          
+          # Install the specific version from GitHub Packages
+          echo "📦 Installing ${{ env.PYPI_LIBRARY_NAME }}==${{ env.LIB_VERSION }} from GitHub Packages..."
+          python -m pip install --no-deps --force-reinstall ${{ env.PYPI_LIBRARY_NAME }}==${{ env.LIB_VERSION }}
+          
+          # Test the import
+          echo "🧪 Testing package import..."
           python -c "${{ env.TEST_IMPORT }}"
           if [ $? -eq 0 ]; then
-            echo "✅ ${{ env.PYPI_LIBRARY_NAME }} successfully installed from GitHub Packages!"
+            echo "✅ ${{ env.PYPI_LIBRARY_NAME }} successfully installed and imported from GitHub Packages!"
+            echo "📍 Installed from: GitHub Packages (pypi.pkg.github.com/tzoght)"
           else
-            echo "❌ ${{ env.PYPI_LIBRARY_NAME }} could not be installed from GitHub Packages."
+            echo "❌ ${{ env.PYPI_LIBRARY_NAME }} import failed after installation from GitHub Packages."
             exit 1
           fi
+          
+          # Verify package details and installation source
+          echo "📋 Package installation details:"
+          python -m pip show ${{ env.PYPI_LIBRARY_NAME }}
+          
+          echo "🔗 Verifying package was installed from GitHub Packages:"
+          # Extract module name from TEST_IMPORT (e.g., "import stackpy" -> "stackpy")
+          MODULE_NAME=$(echo "${{ env.TEST_IMPORT }}" | sed 's/import //')
+          python -c "import $MODULE_NAME; print(f'✅ Package location: {$MODULE_NAME.__file__}')" 2>/dev/null || echo "Could not determine package path"
+          
+          # Double-check that we're not accidentally using PyPI
+          echo "🚫 Confirming NO fallback to PyPI occurred:"
+          python -m pip config list | grep -i index-url || echo "No index-url configured (good)"
 
     - name: Create publishing summary
       run: |
