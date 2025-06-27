@@ -2,6 +2,12 @@
 
 <!--next-version-placeholder-->
 
+## v0.2.0 (2025-06-27)
+
+### Feature
+
+* Enable automatic PyPI publishing in merge workflow ([`9d899a4`](https://github.com/tzoght/stackpy/commit/9d899a4f13190d0b3cca16cccb00686a21a8407a))
+
 ## v0.1.1 (2025-06-27)
 
 
