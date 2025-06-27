@@ -146,11 +146,11 @@ jobs:
         poetry run pytest tests/ --cov-branch --cov=template_library --cov-report=xml:coverage-reports/coverage.xml
         ls -las coverage-reports/
 
-    - name: SonarQube Scan
-      uses: SonarSource/sonarqube-scan-action@v3
-      env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+    # - name: SonarQube Scan
+    #   uses: SonarSource/sonarqube-scan-action@v3
+    #   env:
+    #       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
+    #       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
     - name: Semantic Release
       env:
