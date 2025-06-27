@@ -7,12 +7,10 @@ license="Copyright Zoght Inc - DO NOT DISTRIBUTE"
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = ">3.8,<3.12"
-
-[tool.poetry.dev-dependencies]
-pytest = ">=6.2.5"
+python = ">=3.8,<3.13"
 
 [tool.poetry.group.dev.dependencies]
+pytest = ">=6.2.5"
 pytest-cov = "^5.0.0"
 jupyter = "^1.0.0"
 sphinx-autoapi = "^3.0.0"
@@ -27,7 +25,7 @@ changelog_file = "CHANGELOG.md"             # changelog file
 build_command = "poetry build"              # build distribution files
 dist_path = "dist/"                         # where to put distribution files
 upload_to_release = true                    # auto-create GitHub release
-upload_to_pypi = false                      # don't auto-upload to PyPI
+upload_to_pypi = false                      # manual PyPI publishing
 remove_dist = false                         # don't remove distribution files
 patch_without_tag = true                    # patch release by default
 
