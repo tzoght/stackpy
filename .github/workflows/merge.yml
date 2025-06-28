@@ -233,33 +233,35 @@ jobs:
         
         if [ -n "${{ secrets.PYPI_UPDATE_PAT }}" ]; then
           echo "Using PAT to trigger cross-repository workflow..."
-          # Try common parameter names that github-hosted-pypi might expect
-          gh workflow run update.yml \
+          
+          # Extract author from GitHub repository info
+          AUTHOR=$(gh api repos/$GITHUB_REPOSITORY --jq '.owner.login' 2>/dev/null || echo "${GITHUB_REPOSITORY_OWNER}")
+          
+          # Use the register workflow with correct parameters
+          gh workflow run register.yml \
             --repo tzoght/github-hosted-pypi \
-            --field name="$PACKAGE_NAME" \
-            --field url="git+${REPO_URL}@${LATEST_RELEASE}" \
-            --field version="$LATEST_RELEASE" || \
-          # Fallback to different parameter names if the first attempt fails
-          gh workflow run update.yml \
-            --repo tzoght/github-hosted-pypi \
-            --field package="$PACKAGE_NAME" \
-            --field link="git+${REPO_URL}@${LATEST_RELEASE}" \
-            --field tag="$LATEST_RELEASE"
+            --field package_name="$PACKAGE_NAME" \
+            --field version="$LATEST_RELEASE" \
+            --field author="$AUTHOR" \
+            --field short_desc="Python package: $PACKAGE_NAME" \
+            --field homepage="$REPO_URL"
           
           echo "✅ GitHub-hosted PyPI index update triggered!"
           echo "🔗 Monitor the update at: https://github.com/tzoght/github-hosted-pypi/actions"
         else
           echo "⚠️ PYPI_UPDATE_PAT secret not found. Creating manual update instructions..."
-          echo "📝 Manual PyPI index update required:"
-          echo "  1. Go to: https://github.com/tzoght/github-hosted-pypi/actions/workflows/update.yml"
+          echo "📝 Manual PyPI index registration required:"
+          echo "  1. Go to: https://github.com/tzoght/github-hosted-pypi/actions/workflows/register.yml"
           echo "  2. Click 'Run workflow'"
           echo "  3. Fill in the form with these values:"
-          echo "     📦 Package: $PACKAGE_NAME"
-          echo "     🔗 URL: git+${REPO_URL}@${LATEST_RELEASE}"
-          echo "     🏷️ Version/Tag: $LATEST_RELEASE"
-          echo "  4. Click 'Run workflow' to update the index"
+          echo "     📦 Package name: $PACKAGE_NAME"
+          echo "     🏷️ Version: $LATEST_RELEASE"
+          echo "     👤 Author: ${GITHUB_REPOSITORY_OWNER} (or your preferred author name)"
+          echo "     📝 Short description: Python package: $PACKAGE_NAME (or provide your own description)"
+          echo "     🏠 Homepage: $REPO_URL"
+          echo "  4. Click 'Run workflow' to register in the index"
           echo ""
-          echo "ℹ️ Note: Use the field names exactly as shown in the workflow form"
+          echo "ℹ️ Note: This will create a PR to add your package to the PyPI index"
           echo ""
           echo "💡 To automate this, create a PAT with 'actions:write' permission and store it as PYPI_UPDATE_PAT secret"
         fi
