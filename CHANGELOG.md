@@ -2,6 +2,12 @@
 
 <!--next-version-placeholder-->
 
+## v1.0.1 (2025-06-28)
+
+### Fix
+
+* Correct GitHub Packages URLs to resolve 404 publishing error ([`8fbb543`](https://github.com/tzoght/stackpy/commit/8fbb543ba187c63756304c4780b8b0f84efa38d7))
+
 ## v1.0.0 (2025-06-27)
 
 ### Feature
