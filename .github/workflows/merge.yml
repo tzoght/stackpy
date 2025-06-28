@@ -158,8 +158,8 @@ jobs:
           echo "Initialize Conda"
           eval "$(conda shell.bash hook)"
           conda activate ${{ env.CONDA_ENV }}
-          # Configure poetry to use GitHub Packages
-          poetry config repositories.github https://pypi.pkg.github.com/tzoght/
+          # Configure poetry to use GitHub Packages (upload URL)
+          poetry config repositories.github https://upload.pypi.pkg.github.com/tzoght/
           poetry config http-basic.github __token__ ${{ env.GITHUB_TOKEN }}
 
     - name: Semantic Release (GitHub Release Only)

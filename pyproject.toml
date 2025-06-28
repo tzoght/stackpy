@@ -31,7 +31,7 @@ patch_without_tag = true                    # patch release by default
 
 [[tool.poetry.source]]
 name = "github"
-url = "https://pypi.pkg.github.com/tzoght/"
+url = "https://pypi.pkg.github.com/tzoght/simple/"
 priority = "explicit"
 
 [build-system]

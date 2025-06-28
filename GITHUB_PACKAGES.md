@@ -40,9 +40,10 @@ pip install -r requirements.txt
 If you're using Poetry, add the repository source to your `pyproject.toml`:
 
 ```toml
+# For downloading packages (use the simple/ endpoint)
 [[tool.poetry.source]]
 name = "github"
-url = "https://pypi.pkg.github.com/tzoght/"
+url = "https://pypi.pkg.github.com/tzoght/simple/"
 priority = "explicit"
 
 [tool.poetry.dependencies]
@@ -103,4 +104,8 @@ The package is automatically published to GitHub Packages when code is merged to
 - Package versions follow semantic versioning
 - Each merge to main creates a new release
 - Installation requires specifying the GitHub Packages index URL
-- Compatible with all standard pip and Poetry workflows 
+- Compatible with all standard pip and Poetry workflows
+
+### GitHub Packages URL Reference
+- **For installing packages**: `https://pypi.pkg.github.com/tzoght/simple/`
+- **For uploading packages** (CI/CD only): `https://upload.pypi.pkg.github.com/tzoght/` 
