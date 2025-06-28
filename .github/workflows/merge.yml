@@ -37,6 +37,7 @@ env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   # SEMVER_PAT
   SEMVER_PAT: ${{ secrets.SEMVER_GITHUB_PAT }}
+  ############################## DEFINED AS REPOSITORY SECRET #############################
 
 jobs:
 
@@ -153,24 +154,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-    - name: Configure GitHub Packages for poetry
-      run: |
-          echo "Initialize Conda"
-          eval "$(conda shell.bash hook)"
-          conda activate ${{ env.CONDA_ENV }}
-          
-          # Configure poetry to use GitHub Packages (standard format)
-          echo "🔧 Configuring GitHub Packages repository..."
-          poetry config repositories.github https://upload.pypi.pkg.github.com/tzoght/
-          poetry config http-basic.github __token__ ${{ env.GITHUB_TOKEN }}
-          
-          # Verify configuration
-          echo "📋 Poetry repository configuration:"
-          poetry config --list | grep github || echo "No GitHub config found"
-          
-          # Test authentication
-          echo "🔐 Testing GitHub Packages authentication..."
-          curl -H "Authorization: token ${{ env.GITHUB_TOKEN }}" https://api.github.com/user || echo "Auth test failed"
+    # GitHub-hosted PyPI index deployment doesn't need special poetry configuration
+    # The package will be attached to the GitHub release and indexed automatically
 
     - name: Semantic Release (GitHub Release Only)
       env:
@@ -187,35 +172,74 @@ jobs:
         git config user.email github-actions@github.com
         poetry run semantic-release publish
 
-    - name: Build and Publish to GitHub Packages
+    - name: Build Package for GitHub-hosted PyPI
       run: |
         echo "Initialize Conda"
         eval "$(conda shell.bash hook)"
         conda activate ${{ env.CONDA_ENV }}
         
         # Build the package
-        echo "📦 Building package..."
+        echo "📦 Building package for GitHub-hosted PyPI index..."
         poetry build
         
-        # Try poetry publish first
-        echo "🚀 Attempting to publish with poetry..."
-        if ! poetry publish --repository github; then
-          echo "❌ Poetry publish failed, trying with twine..."
-          
-          # Install twine if not available
-          pip install twine
-          
-          # Configure twine for GitHub Packages
-          export TWINE_USERNAME=__token__
-          export TWINE_PASSWORD=${{ env.GITHUB_TOKEN }}
-          export TWINE_REPOSITORY_URL=https://upload.pypi.pkg.github.com/tzoght/
-          
-          # Publish with twine
-          echo "🔄 Publishing with twine to GitHub Packages..."
-          twine upload dist/* --repository-url $TWINE_REPOSITORY_URL --verbose
+        # Show what was built
+        echo "📋 Built packages:"
+        ls -la dist/
+        
+        # The semantic-release step will create a GitHub release
+        # We'll attach these artifacts to that release
+        echo "✅ Package built successfully! Artifacts will be attached to GitHub release."
+
+    - name: Upload Release Assets
+      if: success()
+      run: |
+        echo "Initialize Conda"
+        eval "$(conda shell.bash hook)"
+        conda activate ${{ env.CONDA_ENV }}
+        
+        # Get the latest release (created by semantic-release)
+        LATEST_RELEASE=$(gh release list --limit 1 --json tagName --jq '.[0].tagName')
+        echo "📋 Latest release: $LATEST_RELEASE"
+        
+        if [ -n "$LATEST_RELEASE" ] && [ "$LATEST_RELEASE" != "null" ]; then
+          echo "📎 Uploading built artifacts to release $LATEST_RELEASE..."
+          gh release upload "$LATEST_RELEASE" dist/* --clobber
+          echo "✅ Artifacts uploaded to GitHub release!"
         else
-          echo "✅ Poetry publish succeeded!"
+          echo "⚠️ No release found to attach artifacts to."
         fi
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Update GitHub-hosted PyPI Index
+      if: success()
+      run: |
+        echo "Initialize Conda"
+        eval "$(conda shell.bash hook)"
+        conda activate ${{ env.CONDA_ENV }}
+        
+        # Get the latest release info
+        LATEST_RELEASE=$(gh release list --limit 1 --json tagName --jq '.[0].tagName')
+        PACKAGE_NAME="${{ env.PYPI_LIBRARY_NAME }}"
+        REPO_URL="https://github.com/tzoght/${{ env.REPO_NAME }}"
+        
+        echo "📋 Updating GitHub-hosted PyPI index..."
+        echo "  Package: $PACKAGE_NAME"
+        echo "  Version: $LATEST_RELEASE"
+        echo "  Repository: $REPO_URL"
+        
+        # Trigger the update workflow in the github-hosted-pypi repository
+        echo "🚀 Triggering PyPI index update workflow..."
+        gh workflow run update.yml \
+          --repo tzoght/github-hosted-pypi \
+          --field package_name="$PACKAGE_NAME" \
+          --field package_url="git+${REPO_URL}@${LATEST_RELEASE}" \
+          --field new_version="$LATEST_RELEASE"
+        
+        echo "✅ GitHub-hosted PyPI index update triggered!"
+        echo "🔗 Monitor the update at: https://github.com/tzoght/github-hosted-pypi/actions"
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Get ${{ env.PYPI_LIBRARY_NAME }} version
       id: get_version
@@ -226,45 +250,38 @@ jobs:
           conda activate ${{ env.CONDA_ENV }}
           echo "LIB_VERSION=$(poetry version --short)" >> $GITHUB_ENV
 
-    - name: Test installation from GitHub Packages
+    - name: Test installation from GitHub-hosted PyPI Index
       run: |
           echo "Initialize Conda"
           eval "$(conda shell.bash hook)"
           conda init bash
           conda create --name test_env python=${{ env.PYTHON_VERSION }}
           conda activate test_env
-          echo "****** Testing Installation of ${{ env.PYPI_LIBRARY_NAME }}==${{ env.LIB_VERSION }} from GitHub Packages *****"
+          echo "****** Testing Installation of ${{ env.PYPI_LIBRARY_NAME }}==${{ env.LIB_VERSION }} from GitHub-hosted PyPI *****"
           
-          # Wait for GitHub Packages to propagate the new package
-          echo "⏳ Waiting for package propagation to GitHub Packages..."
-          sleep 90
+          # Wait for GitHub-hosted PyPI index to update
+          echo "⏳ Waiting for GitHub-hosted PyPI index to update..."
+          sleep 120
           
           # Clear pip cache to ensure fresh download
           echo "🧹 Clearing pip cache for fresh installation test..."
           python -m pip cache purge
           
-          # Ensure we're only using GitHub Packages (no fallback to PyPI)
-          echo "🔧 Configuring pip to use only GitHub Packages..."
-          python -m pip config set global.index-url https://__token__:${{ env.GITHUB_TOKEN }}@pypi.pkg.github.com/tzoght/simple/
-          python -m pip config set global.trusted-host pypi.pkg.github.com
-          python -m pip config set global.no-index false
+          # Install from the GitHub-hosted PyPI index
+          echo "📦 Installing ${{ env.PYPI_LIBRARY_NAME }}==${{ env.LIB_VERSION }} from GitHub-hosted PyPI..."
+          PYPI_INDEX_URL="https://tzoght.github.io/github-hosted-pypi/"
           
-          # Verify the package exists in GitHub Packages
-          echo "🔍 Checking package availability in GitHub Packages..."
-          python -m pip index versions ${{ env.PYPI_LIBRARY_NAME }} || echo "Package may still be propagating..."
-          
-          # Install the specific version from GitHub Packages
-          echo "📦 Installing ${{ env.PYPI_LIBRARY_NAME }}==${{ env.LIB_VERSION }} from GitHub Packages..."
-          python -m pip install --no-deps --force-reinstall ${{ env.PYPI_LIBRARY_NAME }}==${{ env.LIB_VERSION }}
+          # Try to install the package from the GitHub-hosted PyPI index
+          python -m pip install "${{ env.PYPI_LIBRARY_NAME }}==${{ env.LIB_VERSION }}" --extra-index-url "$PYPI_INDEX_URL" --verbose
           
           # Test the import
           echo "🧪 Testing package import..."
           python -c "${{ env.TEST_IMPORT }}"
           if [ $? -eq 0 ]; then
-            echo "✅ ${{ env.PYPI_LIBRARY_NAME }} successfully installed and imported from GitHub Packages!"
-            echo "📍 Installed from: GitHub Packages (pypi.pkg.github.com/tzoght)"
+            echo "✅ ${{ env.PYPI_LIBRARY_NAME }} successfully installed and imported from GitHub-hosted PyPI!"
+            echo "📍 Installed from: GitHub-hosted PyPI (tzoght.github.io/github-hosted-pypi)"
           else
-            echo "❌ ${{ env.PYPI_LIBRARY_NAME }} import failed after installation from GitHub Packages."
+            echo "❌ ${{ env.PYPI_LIBRARY_NAME }} import failed after installation from GitHub-hosted PyPI."
             exit 1
           fi
           
@@ -272,32 +289,32 @@ jobs:
           echo "📋 Package installation details:"
           python -m pip show ${{ env.PYPI_LIBRARY_NAME }}
           
-          echo "🔗 Verifying package was installed from GitHub Packages:"
+          echo "🔗 Verifying package was installed from GitHub:"
           # Extract module name from TEST_IMPORT (e.g., "import stackpy" -> "stackpy")
           MODULE_NAME=$(echo "${{ env.TEST_IMPORT }}" | sed 's/import //')
           python -c "import $MODULE_NAME; print(f'✅ Package location: {$MODULE_NAME.__file__}')" 2>/dev/null || echo "Could not determine package path"
-          
-          # Double-check that we're not accidentally using PyPI
-          echo "🚫 Confirming NO fallback to PyPI occurred:"
-          python -m pip config list | grep -i index-url || echo "No index-url configured (good)"
 
     - name: Create publishing summary
       run: |
-        echo "## 🎉 Package Published to GitHub Packages!" >> $GITHUB_STEP_SUMMARY
+        echo "## 🎉 Package Published to GitHub-hosted PyPI!" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "**Package:** \`${{ env.PYPI_LIBRARY_NAME }}\`" >> $GITHUB_STEP_SUMMARY
         echo "**Version:** \`${{ env.LIB_VERSION }}\`" >> $GITHUB_STEP_SUMMARY
-        echo "**GitHub Packages URL:** https://github.com/tzoght/${{ env.REPO_NAME }}/packages" >> $GITHUB_STEP_SUMMARY
+        echo "**GitHub-hosted PyPI Index:** https://tzoght.github.io/github-hosted-pypi/" >> $GITHUB_STEP_SUMMARY
+        echo "**Package Page:** https://tzoght.github.io/github-hosted-pypi/${{ env.PYPI_LIBRARY_NAME }}/" >> $GITHUB_STEP_SUMMARY
         echo "**GitHub Release:** ${{ env.LINK_TO_RELEASES }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Index Repository:** https://github.com/tzoght/github-hosted-pypi" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### 📦 Install Commands:" >> $GITHUB_STEP_SUMMARY
         echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-        echo "# Install from GitHub Packages (requires authentication)" >> $GITHUB_STEP_SUMMARY
-        echo "pip install --index-url https://pypi.pkg.github.com/tzoght/simple/ ${{ env.PYPI_LIBRARY_NAME }}==${{ env.LIB_VERSION }}" >> $GITHUB_STEP_SUMMARY
+        echo "# Install from GitHub-hosted PyPI index" >> $GITHUB_STEP_SUMMARY
+        echo "pip install ${{ env.PYPI_LIBRARY_NAME }}==${{ env.LIB_VERSION }} --extra-index-url https://tzoght.github.io/github-hosted-pypi/" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "# Or configure pip globally:" >> $GITHUB_STEP_SUMMARY
-        echo "pip config set global.index-url https://pypi.pkg.github.com/tzoght/simple/" >> $GITHUB_STEP_SUMMARY
-        echo "pip install ${{ env.PYPI_LIBRARY_NAME }}==${{ env.LIB_VERSION }}" >> $GITHUB_STEP_SUMMARY
+        echo "# Or install the latest version:" >> $GITHUB_STEP_SUMMARY
+        echo "pip install ${{ env.PYPI_LIBRARY_NAME }} --extra-index-url https://tzoght.github.io/github-hosted-pypi/" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "# Or install directly from GitHub:" >> $GITHUB_STEP_SUMMARY
+        echo "pip install git+https://github.com/tzoght/${{ env.REPO_NAME }}@${{ env.LIB_VERSION }}" >> $GITHUB_STEP_SUMMARY
         echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
 
