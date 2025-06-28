@@ -277,49 +277,49 @@ jobs:
           conda activate ${{ env.CONDA_ENV }}
           echo "LIB_VERSION=$(poetry version --short)" >> $GITHUB_ENV
 
-    # - name: Test installation from GitHub-hosted PyPI Index
-    #   run: |
-    #       echo "Initialize Conda"
-    #       eval "$(conda shell.bash hook)"
-    #       conda init bash
-    #       conda create --name test_env python=${{ env.PYTHON_VERSION }}
-    #       conda activate test_env
-    #       echo "****** Testing Installation of ${{ env.PYPI_LIBRARY_NAME }}==${{ env.LIB_VERSION }} from GitHub-hosted PyPI *****"
+    - name: Test installation from GitHub-hosted PyPI Index
+      run: |
+          echo "Initialize Conda"
+          eval "$(conda shell.bash hook)"
+          conda init bash
+          conda create --name test_env python=${{ env.PYTHON_VERSION }}
+          conda activate test_env
+          echo "****** Testing Installation of ${{ env.PYPI_LIBRARY_NAME }}==${{ env.LIB_VERSION }} from GitHub-hosted PyPI *****"
           
-    #       # Wait for GitHub-hosted PyPI index to update
-    #       echo "⏳ Waiting for GitHub-hosted PyPI index to update..."
-    #       sleep 120
+          # Wait for GitHub-hosted PyPI index to update
+          echo "⏳ Waiting for GitHub-hosted PyPI index to update..."
+          sleep 120
           
-    #       # Clear pip cache to ensure fresh download
-    #       echo "🧹 Clearing pip cache for fresh installation test..."
-    #       python -m pip cache purge
+          # Clear pip cache to ensure fresh download
+          echo "🧹 Clearing pip cache for fresh installation test..."
+          python -m pip cache purge
           
-    #       # Install from the GitHub-hosted PyPI index
-    #       echo "📦 Installing ${{ env.PYPI_LIBRARY_NAME }}==${{ env.LIB_VERSION }} from GitHub-hosted PyPI..."
-    #       PYPI_INDEX_URL="https://tzoght.github.io/github-hosted-pypi/"
+          # Install from the GitHub-hosted PyPI index
+          echo "📦 Installing ${{ env.PYPI_LIBRARY_NAME }}==${{ env.LIB_VERSION }} from GitHub-hosted PyPI..."
+          PYPI_INDEX_URL="https://tzoght.github.io/github-hosted-pypi/"
           
-    #       # Try to install the package from the GitHub-hosted PyPI index
-    #       python -m pip install "${{ env.PYPI_LIBRARY_NAME }}==${{ env.LIB_VERSION }}" --extra-index-url "$PYPI_INDEX_URL" --verbose
+          # Try to install the package from the GitHub-hosted PyPI index
+          python -m pip install "${{ env.PYPI_LIBRARY_NAME }}==${{ env.LIB_VERSION }}" --extra-index-url "$PYPI_INDEX_URL" --verbose
           
-    #       # Test the import
-    #       echo "🧪 Testing package import..."
-    #       python -c "${{ env.TEST_IMPORT }}"
-    #       if [ $? -eq 0 ]; then
-    #         echo "✅ ${{ env.PYPI_LIBRARY_NAME }} successfully installed and imported from GitHub-hosted PyPI!"
-    #         echo "📍 Installed from: GitHub-hosted PyPI (tzoght.github.io/github-hosted-pypi)"
-    #       else
-    #         echo "❌ ${{ env.PYPI_LIBRARY_NAME }} import failed after installation from GitHub-hosted PyPI."
-    #         exit 1
-    #       fi
+          # Test the import
+          echo "🧪 Testing package import..."
+          python -c "${{ env.TEST_IMPORT }}"
+          if [ $? -eq 0 ]; then
+            echo "✅ ${{ env.PYPI_LIBRARY_NAME }} successfully installed and imported from GitHub-hosted PyPI!"
+            echo "📍 Installed from: GitHub-hosted PyPI (tzoght.github.io/github-hosted-pypi)"
+          else
+            echo "❌ ${{ env.PYPI_LIBRARY_NAME }} import failed after installation from GitHub-hosted PyPI."
+            exit 1
+          fi
           
-    #       # Verify package details and installation source
-    #       echo "📋 Package installation details:"
-    #       python -m pip show ${{ env.PYPI_LIBRARY_NAME }}
+          # Verify package details and installation source
+          echo "📋 Package installation details:"
+          python -m pip show ${{ env.PYPI_LIBRARY_NAME }}
           
-    #       echo "🔗 Verifying package was installed from GitHub:"
-    #       # Extract module name from TEST_IMPORT (e.g., "import stackpy" -> "stackpy")
-    #       MODULE_NAME=$(echo "${{ env.TEST_IMPORT }}" | sed 's/import //')
-    #       python -c "import $MODULE_NAME; print(f'✅ Package location: {$MODULE_NAME.__file__}')" 2>/dev/null || echo "Could not determine package path"
+          echo "🔗 Verifying package was installed from GitHub:"
+          # Extract module name from TEST_IMPORT (e.g., "import stackpy" -> "stackpy")
+          MODULE_NAME=$(echo "${{ env.TEST_IMPORT }}" | sed 's/import //')
+          python -c "import $MODULE_NAME; print(f'✅ Package location: {$MODULE_NAME.__file__}')" 2>/dev/null || echo "Could not determine package path"
 
     
     - name: Create publishing summary
