@@ -230,16 +230,32 @@ jobs:
         
         # Trigger the update workflow in the github-hosted-pypi repository
         echo "🚀 Triggering PyPI index update workflow..."
-        gh workflow run update.yml \
-          --repo tzoght/github-hosted-pypi \
-          --field package_name="$PACKAGE_NAME" \
-          --field package_url="git+${REPO_URL}@${LATEST_RELEASE}" \
-          --field new_version="$LATEST_RELEASE"
         
-        echo "✅ GitHub-hosted PyPI index update triggered!"
-        echo "🔗 Monitor the update at: https://github.com/tzoght/github-hosted-pypi/actions"
+        if [ -n "${{ secrets.PYPI_UPDATE_PAT }}" ]; then
+          echo "Using PAT to trigger cross-repository workflow..."
+          gh workflow run update.yml \
+            --repo tzoght/github-hosted-pypi \
+            --field package_name="$PACKAGE_NAME" \
+            --field package_url="git+${REPO_URL}@${LATEST_RELEASE}" \
+            --field new_version="$LATEST_RELEASE"
+          
+          echo "✅ GitHub-hosted PyPI index update triggered!"
+          echo "🔗 Monitor the update at: https://github.com/tzoght/github-hosted-pypi/actions"
+        else
+          echo "⚠️ PYPI_UPDATE_PAT secret not found. Creating manual update instructions..."
+          echo "📝 Manual PyPI index update required:"
+          echo "  1. Go to: https://github.com/tzoght/github-hosted-pypi/actions/workflows/update.yml"
+          echo "  2. Click 'Run workflow'"
+          echo "  3. Fill in the form:"
+          echo "     - Package name: $PACKAGE_NAME"
+          echo "     - Package URL: git+${REPO_URL}@${LATEST_RELEASE}"
+          echo "     - New version: $LATEST_RELEASE"
+          echo "  4. Click 'Run workflow'"
+          echo ""
+          echo "💡 To automate this, create a PAT with 'actions:write' permission and store it as PYPI_UPDATE_PAT secret"
+        fi
       env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_TOKEN: ${{ secrets.PYPI_UPDATE_PAT || secrets.GITHUB_TOKEN }}
 
     - name: Get ${{ env.PYPI_LIBRARY_NAME }} version
       id: get_version
