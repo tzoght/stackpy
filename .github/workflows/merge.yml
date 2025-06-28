@@ -158,9 +158,19 @@ jobs:
           echo "Initialize Conda"
           eval "$(conda shell.bash hook)"
           conda activate ${{ env.CONDA_ENV }}
-          # Configure poetry to use GitHub Packages (upload URL)
+          
+          # Configure poetry to use GitHub Packages (standard format)
+          echo "🔧 Configuring GitHub Packages repository..."
           poetry config repositories.github https://upload.pypi.pkg.github.com/tzoght/
           poetry config http-basic.github __token__ ${{ env.GITHUB_TOKEN }}
+          
+          # Verify configuration
+          echo "📋 Poetry repository configuration:"
+          poetry config --list | grep github || echo "No GitHub config found"
+          
+          # Test authentication
+          echo "🔐 Testing GitHub Packages authentication..."
+          curl -H "Authorization: token ${{ env.GITHUB_TOKEN }}" https://api.github.com/user || echo "Auth test failed"
 
     - name: Semantic Release (GitHub Release Only)
       env:
@@ -182,10 +192,30 @@ jobs:
         echo "Initialize Conda"
         eval "$(conda shell.bash hook)"
         conda activate ${{ env.CONDA_ENV }}
+        
         # Build the package
+        echo "📦 Building package..."
         poetry build
-        # Publish to GitHub Packages
-        poetry publish --repository github
+        
+        # Try poetry publish first
+        echo "🚀 Attempting to publish with poetry..."
+        if ! poetry publish --repository github; then
+          echo "❌ Poetry publish failed, trying with twine..."
+          
+          # Install twine if not available
+          pip install twine
+          
+          # Configure twine for GitHub Packages
+          export TWINE_USERNAME=__token__
+          export TWINE_PASSWORD=${{ env.GITHUB_TOKEN }}
+          export TWINE_REPOSITORY_URL=https://upload.pypi.pkg.github.com/tzoght/
+          
+          # Publish with twine
+          echo "🔄 Publishing with twine to GitHub Packages..."
+          twine upload dist/* --repository-url $TWINE_REPOSITORY_URL --verbose
+        else
+          echo "✅ Poetry publish succeeded!"
+        fi
 
     - name: Get ${{ env.PYPI_LIBRARY_NAME }} version
       id: get_version
