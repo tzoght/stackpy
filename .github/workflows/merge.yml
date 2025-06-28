@@ -233,11 +233,18 @@ jobs:
         
         if [ -n "${{ secrets.PYPI_UPDATE_PAT }}" ]; then
           echo "Using PAT to trigger cross-repository workflow..."
+          # Try common parameter names that github-hosted-pypi might expect
           gh workflow run update.yml \
             --repo tzoght/github-hosted-pypi \
-            --field package_name="$PACKAGE_NAME" \
-            --field package_url="git+${REPO_URL}@${LATEST_RELEASE}" \
-            --field new_version="$LATEST_RELEASE"
+            --field name="$PACKAGE_NAME" \
+            --field url="git+${REPO_URL}@${LATEST_RELEASE}" \
+            --field version="$LATEST_RELEASE" || \
+          # Fallback to different parameter names if the first attempt fails
+          gh workflow run update.yml \
+            --repo tzoght/github-hosted-pypi \
+            --field package="$PACKAGE_NAME" \
+            --field link="git+${REPO_URL}@${LATEST_RELEASE}" \
+            --field tag="$LATEST_RELEASE"
           
           echo "✅ GitHub-hosted PyPI index update triggered!"
           echo "🔗 Monitor the update at: https://github.com/tzoght/github-hosted-pypi/actions"
@@ -246,11 +253,13 @@ jobs:
           echo "📝 Manual PyPI index update required:"
           echo "  1. Go to: https://github.com/tzoght/github-hosted-pypi/actions/workflows/update.yml"
           echo "  2. Click 'Run workflow'"
-          echo "  3. Fill in the form:"
-          echo "     - Package name: $PACKAGE_NAME"
-          echo "     - Package URL: git+${REPO_URL}@${LATEST_RELEASE}"
-          echo "     - New version: $LATEST_RELEASE"
-          echo "  4. Click 'Run workflow'"
+          echo "  3. Fill in the form with these values:"
+          echo "     📦 Package: $PACKAGE_NAME"
+          echo "     🔗 URL: git+${REPO_URL}@${LATEST_RELEASE}"
+          echo "     🏷️ Version/Tag: $LATEST_RELEASE"
+          echo "  4. Click 'Run workflow' to update the index"
+          echo ""
+          echo "ℹ️ Note: Use the field names exactly as shown in the workflow form"
           echo ""
           echo "💡 To automate this, create a PAT with 'actions:write' permission and store it as PYPI_UPDATE_PAT secret"
         fi
