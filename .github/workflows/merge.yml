@@ -237,8 +237,8 @@ jobs:
           # Extract author from GitHub repository info
           AUTHOR=$(gh api repos/$GITHUB_REPOSITORY --jq '.owner.login' 2>/dev/null || echo "${GITHUB_REPOSITORY_OWNER}")
           
-          # Use the register workflow with correct parameters
-          gh workflow run register.yml \
+          # Use the register workflow with correct parameters and PAT authentication
+          GITHUB_TOKEN="${{ secrets.PYPI_UPDATE_PAT }}" gh workflow run register.yml \
             --repo tzoght/github-hosted-pypi \
             --field package_name="$PACKAGE_NAME" \
             --field version="$LATEST_RELEASE" \
@@ -344,4 +344,5 @@ jobs:
         echo "pip install git+https://github.com/tzoght/${{ env.REPO_NAME }}@${{ env.LIB_VERSION }}" >> $GITHUB_STEP_SUMMARY
         echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
+        
 
