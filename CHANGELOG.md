@@ -2,6 +2,12 @@
 
 <!--next-version-placeholder-->
 
+## v1.1.0 (2025-06-28)
+
+### Feature
+
+* Publishing to github ([`3da1cdc`](https://github.com/tzoght/stackpy/commit/3da1cdc8dcd821b9c98eee4380a3f9631b6e0c0b))
+
 ## v1.0.1 (2025-06-28)
 
 ### Fix
